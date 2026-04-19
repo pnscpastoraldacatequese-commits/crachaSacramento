@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Crachás com Fundo Temático</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .controls textarea {
+            width: 80vw;
+            max-width: 600px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+        }
+        .controls select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            width: 100%;
+            max-width: 622px; /* Largura do textarea + padding */
+        }
+        .btn-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #357ABD;
+        }
+        .btn.secondary {
+            background-color: #f7f7f7;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+        .btn.secondary:hover {
+            background-color: #e0e0e0;
+        }
+        .btn.print-btn {
+            background-color: #27ae60;
+        }
+        .btn.print-btn:hover {
+            background-color: #219150;
+        }
+        .status-message {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #008000;
+            min-height: 1em;
+        }
+        .container {
+            width: 21cm; /* A4 width */
+            min-height: 29.7cm; /* A4 height minimal */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start; /* Alinhamento à esquerda para grid */
+            align-content: flex-start;
+            padding: 1cm 0.75cm; /* Margens de segurança da página */
+            box-sizing: border-box;
+        }
+        
+        /* --- Estilos do Crachá --- */
+        .cracha {
+            width: 9.5cm;
+            height: 6.5cm;
+            border: 1px solid #ccc; /* Borda leve na tela */
+            border-radius: 8px;
+            box-sizing: border-box;
+            margin: 0.1cm; /* Pequeno espaçamento entre eles na tela */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            background-color: #fff;
+            
+            /* Novo: Configurações para imagem de fundo */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden; /* Garante que nada saia da borda arredondada */
+        }
+        
+        /* Camada de sobreposição opcional para escurecer/clarear o fundo se necessário
+           e garantir contraste do texto. Atualmente transparente. */
+        .cracha::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            background-color: rgba(255, 255, 255, 0.3); /* Branqueia levemente o fundo para leitura */
+            z-index: 1;
+        }
+
+        .image-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px 15px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 2; /* Acima do fundo */
+        }
+        .logo-paroquia, .logo-nova {
+            height: 50px;
+            width: auto;
+            /* Filtro opcional para garantir visibilidade se o fundo for escuro */
+            /* filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.8)); */
+        }
+        .nome {
+            font-size: 30px; /* Leve ajuste para caber melhor com fundo */
+            font-weight: bold;
+            color: #000; /* Cor do texto */
+            margin-top: 10px;
+            margin-bottom: 0;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            padding: 0 10px;
+            position: relative;
+            z-index: 2; /* Acima do fundo */
+            
+            /* Sombra no texto para garantir leitura sobre imagens */
+            text-shadow: 0px 0px 4px rgba(255, 255, 255, 0.8);
+            
+            /* Garante que nomes muito longos não quebrem o layout */
+            word-wrap: break-word;
+            overflow: hidden;
+            line-height: 1.2;
+        }
+
+        /* Classes para os fundos (URLs de exemplo, substitua pelas suas) */
+        .fundo-eucaristia {
+            /* SUBSTITUA ABAIXO PELA URL DA IMAGEM DE EUCARISTIA */
+            background-image: url('https://via.placeholder.com/360x245/FFF8E1/000000?text=Fundo+Eucaristia+Exemplo');
+        }
+        
+        .fundo-crisma {
+            /* SUBSTITUA ABAIXO PELA URL DA IMAGEM DE CRISMA */
+            background-image: url('https://via.placeholder.com/360x245/E3F2FD/000000?text=Fundo+Crisma+Exemplo');
+        }
+
+        /* --- Estilos de Impressão --- */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0; /* Gerenciamos as margens no .container */
+            }
+            body {
+                background-color: white;
+                margin: 0;
+                padding: 0;
+                display: block;
+            }
+            .controls {
+                display: none !important;
+            }
+            .container {
+                width: 21cm;
+                height: 29.7cm;
+                box-shadow: none;
+                padding: 0.5cm 0.75cm; /* Ajuste fino das margens de impressão */
+                display: grid;
+                grid-template-columns: repeat(2, 9.5cm);
+                grid-template-rows: repeat(4, 6.5cm);
+                gap: 0; /* Sem espaço entre eles para corte preciso */
+                justify-content: center;
+                align-content: center;
+            }
+            .cracha {
+                width: 9.5cm;
+                height: 6.5cm;
+                border: 1px solid #000; /* Borda preta fina para corte */
+                margin: 0;
+                border-radius: 0; /* Cantos retos para corte */
+                -webkit-print-color-adjust: exact; /* Força impressão de cores/fundo no Chrome/Safari */
+                print-color-adjust: exact;
+            }
+            
+            /* Garante quebra de página a cada 8 crachás (4 linhas x 2 colunas) */
+            .cracha:nth-child(8n+1) {
+                page-break-before: always;
+            }
+            
+            /* Remove a quebra na primeira página */
+            .cracha:first-child {
+                page-break-before: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h2>Configuração dos Crachás</h2>
+        
+        <label for="temaSelect"><strong>1. Selecione o Tema:</strong></label>
+        <select id="temaSelect">
+            <option value="eucaristia">Primeira Eucaristia</option>
+            <option value="crisma">Crisma</option>
+        </select>
+
+        <label for="inputNomesRaw"><strong>2. Cole a lista completa de nomes:</strong></label>
+        <textarea id="inputNomesRaw" placeholder="Ex: Nome Sobrenome, Nome2, Nome3 Sobrenome" rows="5"></textarea>
+        <button class="btn" onclick="processarNomes()">Processar Nomes</button>
+
+        <label for="inputNomesProcessados"><strong>3. Lista processada (Regra de Unicidade):</strong></label>
+        <textarea id="inputNomesProcessados" placeholder="Nomes processados aparecerão aqui..." rows="6" readonly></textarea>
+        <div class="btn-container">
+            <button class="btn secondary" onclick="copiarNomes()">Copiar Lista</button>
+            <span id="status-copy" class="status-message"></span>
+        </div>
+
+        <label for="inputNomesFinal"><strong>4. Cole aqui para gerar (edite se necessário):</strong></label>
+        <textarea id="inputNomesFinal" placeholder="Nomes finais para geração..." rows="6"></textarea>
+        
+        <div class="btn-container">
+            <button class="btn" onclick="gerarCrachas()">Gerar Visão Previa</button>
+            <button class="btn print-btn" onclick="window.print()">Imprimir Crachás</button>
+        </div>
+    </div>
+
+    <div class="container" id="crachasContainer">
+        </div>
+
+    <script>
+        // Lista de preposições para tratamento de nome composto (Mantido original)
+        const PREPOSICOES = ['de', 'do', 'da', 'dos', 'das'];
+
+        // URLs dos logos fixos (Mantido original)
+        const URL_LOGO_PAROQUIA = 'https://raw.githubusercontent.com/pnscpastoraldacatequese-commits/cracha/main/paroquia.png';
+        const URL_LOGO_NOVA = 'https://raw.githubusercontent.com/pnscpastoraldacatequese-commits/cracha/main/logonova.PNG';
+
+        /**
+         * Lógica original de processamento de nomes (Mantida intacta)
+         */
+        function determineProcessedName(name, allNames) {
+            const originalNameParts = name.split(' ');
+            
+            const firstName = originalNameParts[0];
+            const firstNameCount = allNames.filter(n => n.split(' ')[0].toUpperCase() === firstName.toUpperCase()).length;
+
+            if (firstNameCount === 1 || originalNameParts.length === 1) {
+                return firstName; 
+            }
+
+            let currentNameParts = [firstName];
+            let i = 1; 
+
+            while (i < originalNameParts.length) {
+                let nextPart = originalNameParts[i];
+                currentNameParts.push(nextPart);
+                i++; 
+
+                if (PREPOSICOES.includes(nextPart.toLowerCase()) && i < originalNameParts.length) {
+                    currentNameParts.push(originalNameParts[i]);
+                    i++; 
+                }
+
+                const currentSegment = currentNameParts.join(' ');
+                
+                let isUniquePrefix = true;
+                
+                for (const otherName of allNames) {
+                    if (otherName.toUpperCase() === name.toUpperCase()) continue; 
+
+                    if (otherName.toUpperCase().startsWith(currentSegment.toUpperCase())) {
+                        isUniquePrefix = false;
+                        break;
+                    }
+                }
+                
+                if (isUniquePrefix) {
+                    return currentSegment;
+                }
+            }
+            
+            return name;
+        }
+
+        function processarNomes() {
+            const nomesInputRaw = document.getElementById('inputNomesRaw').value;
+            let nomes = nomesInputRaw.split(/[,\n]/).map(nome => nome.trim()).filter(nome => nome.length > 0);
+            
+            const nomesProcessados = nomes.map(nome => determineProcessedName(nome, nomes));
+
+            // Formata para exibição simples, separada por vírgulas
+            document.getElementById('inputNomesProcessados').value = nomesProcessados.join(', ');
+            
+            // Preenche automaticamente o campo final para facilitar
+            document.getElementById('inputNomesFinal').value = nomesProcessados.join(', ');
+        }
+
+        function copiarNomes() {
+            const textarea = document.getElementById('inputNomesProcessados');
+            textarea.select();
+            document.execCommand('copy');
+            document.getElementById('status-copy').textContent = 'Copiado!';
+            setTimeout(() => document.getElementById('status-copy').textContent = '', 2000);
+        }
+
+        /**
+         * Função Gerar Crachás Modificada para incluir tema
+         */
+        function gerarCrachas() {
+            const nomesInputFinal = document.getElementById('inputNomesFinal').value;
+            // Aceita vírgula ou quebra de linha como separador
+            const nomes = nomesInputFinal.split(/[,\n]/).map(nome => nome.trim()).filter(nome => nome.length > 0);
+            
+            const temaSelecionado = document.getElementById('temaSelect').value;
+            const crachasContainer = document.getElementById('crachasContainer');
+            
+            crachasContainer.innerHTML = ''; // Limpa existente
+
+            if (nomes.length === 0) {
+                alert("Por favor, processe ou insira nomes no campo passo 4.");
+                return;
+            }
+
+            // Define a classe de fundo baseada no tema
+            const classeFundo = (temaSelecionado === 'crisma') ? 'fundo-crisma' : 'fundo-eucaristia';
+
+            nomes.forEach(nome => {
+                // Cria o elemento principal do crachá
+                const cracha = document.createElement('div');
+                // Adiciona a classe base e a classe do fundo temático
+                cracha.className = `cracha ${classeFundo}`;
+
+                // Container dos logos
+                const imagesDiv = document.createElement('div');
+                imagesDiv.className = 'image-container';
+
+                const imgParoquia = document.createElement('img');
+                imgParoquia.src = URL_LOGO_PAROQUIA;
+                imgParoquia.className = 'logo-paroquia';
+                imgParoquia.alt = 'Logo Paróquia';
+
+                const imgNova = document.createElement('img');
+                imgNova.src = URL_LOGO_NOVA;
+                imgNova.className = 'logo-nova';
+                imgNova.alt = 'Logo Nova';
+
+                imagesDiv.appendChild(imgParoquia);
+                imagesDiv.appendChild(imgNova);
+                
+                // Elemento do Nome
+                const nomeH1 = document.createElement('h1');
+                nomeH1.className = 'nome';
+                nomeH1.textContent = nome.toUpperCase();
+
+                // Monta o crachá
+                cracha.appendChild(imagesDiv);
+                cracha.appendChild(nomeH1);
+                
+                // Adiciona ao container geral
+                crachasContainer.appendChild(cracha);
+            });
+            
+            // Rola a página para baixo para ver a prévia
+            window.scrollTo(0, document.getElementById('crachasContainer').offsetTop);
+        }
+    </script>
+</body>
+</html>
