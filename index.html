@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crachás Sacramentos</title>
+    <title>Crachás com Bordas de Recorte</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f0f0;
+            background-color: #f4f4f9;
             margin: 0;
             display: flex;
             flex-direction: column;
@@ -24,55 +24,64 @@
             background: white;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             width: 80vw;
             max-width: 600px;
         }
         textarea {
             width: 100%;
             padding: 10px;
-            border-radius: 8px;
             border: 1px solid #ccc;
+            border-radius: 8px;
             box-sizing: border-box;
+            resize: vertical;
         }
         select {
             width: 100%;
             padding: 10px;
             border-radius: 8px;
-            margin-top: 5px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
         }
         .btn {
-            padding: 10px 20px;
-            background-color: #4A90E2;
-            color: white;
+            padding: 12px 20px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
+            color: white;
         }
-        .btn-print { background-color: #27ae60; margin-left: 10px; }
+        .btn-generate { background-color: #4A90E2; }
+        .btn-print { background-color: #27ae60; }
 
         .container {
             width: 21cm;
             background-color: white;
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-around;
-            align-content: flex-start;
+            justify-content: flex-start;
             padding: 0;
+            margin: 0 auto;
         }
 
+        /* --- Estilo do Crachá com Borda de Recorte --- */
         .cracha {
             width: 9.5cm;
             height: 6.5cm;
-            margin: 5px;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
             background-size: 100% 100%;
             background-repeat: no-repeat;
-            box-sizing: border-box;
+            
+            /* Borda visível para corte */
+            border: 1px solid #000; 
+            margin: 2px; /* Margem pequena na tela para separação visual */
         }
 
         .nome {
@@ -81,24 +90,33 @@
             color: #000;
             text-transform: uppercase;
             text-align: center;
-            padding: 0 15px;
+            padding: 0 20px;
             word-wrap: break-word;
             max-width: 90%;
-            line-height: 1.1;
+            z-index: 2;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
         }
 
         .fundo-crisma { background-image: url('https://raw.githubusercontent.com/pnscpastoraldacatequese-commits/crachaSacramento/main/Crisma.png'); }
         .fundo-eucaristia { background-image: url('https://raw.githubusercontent.com/pnscpastoraldacatequese-commits/crachaSacramento/main/Eucaristia.png'); }
 
         @media print {
+            body { background: white; padding: 0; }
             .controls { display: none; }
-            body { background: none; padding: 0; }
-            .container { box-shadow: none; width: 21cm; height: 29.7cm; }
-            .cracha { 
-                margin: 0; 
-                border: 0.1px solid #ddd; /* Guia suave para corte */
-                border-radius: 0;
+            .container { 
+                box-shadow: none; 
+                width: 21cm; 
+                height: 29.7cm; 
+                padding: 0.5cm; /* Margem de segurança da impressora */
             }
+            .cracha { 
+                margin: 0; /* Remove margem para as bordas encostarem e facilitar o corte único */
+                border: 0.5pt solid #000; /* Linha preta fina para impressão */
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            /* Garante quebra de página a cada 8 crachás */
             .cracha:nth-child(8n+9) { page-break-before: always; }
         }
     </style>
@@ -106,18 +124,18 @@
 <body>
 
     <div class="controls">
-        <label>1. Selecione o Sacramento:</label>
+        <label>1. Escolha o Sacramento:</label>
         <select id="tema">
             <option value="fundo-eucaristia">Eucaristia</option>
             <option value="fundo-crisma">Crisma</option>
         </select>
 
-        <label style="margin-top:10px;">2. Cole a lista de nomes:</label>
-        <textarea id="inputNomes" rows="6" placeholder="Ex: João Silva, João Santos, Maria..."></textarea>
+        <label style="margin-top:10px;">2. Insira os Nomes:</label>
+        <textarea id="inputNomes" rows="5" placeholder="Digite os nomes separados por vírgula ou um por linha..."></textarea>
         
-        <div style="margin-top:10px;">
-            <button class="btn" onclick="gerar()">Gerar Crachás</button>
-            <button class="btn btn-print" onclick="window.print()">Imprimir</button>
+        <div class="btn-group">
+            <button class="btn btn-generate" onclick="gerar()">Gerar Crachás</button>
+            <button class="btn btn-print" onclick="window.print()">Imprimir Agora</button>
         </div>
     </div>
 
@@ -126,65 +144,53 @@
     <script>
         const PREPOSICOES = ['de', 'do', 'da', 'dos', 'das'];
 
-        /** Lógica Original de Unicidade **/
         function determineProcessedName(name, allNames) {
-            const originalNameParts = name.split(' ');
-            const firstName = originalNameParts[0];
-            const firstNameCount = allNames.filter(n => n.split(' ')[0].toUpperCase() === firstName.toUpperCase()).length;
+            const parts = name.split(' ');
+            const firstName = parts[0];
+            const count = allNames.filter(n => n.split(' ')[0].toUpperCase() === firstName.toUpperCase()).length;
 
-            if (firstNameCount === 1 || originalNameParts.length === 1) {
-                return firstName;
-            }
+            if (count === 1 || parts.length === 1) return firstName;
 
-            let currentNameParts = [firstName];
-            let i = 1;
-
-            while (i < originalNameParts.length) {
-                let nextPart = originalNameParts[i];
-                currentNameParts.push(nextPart);
-                i++;
-
-                if (PREPOSICOES.includes(nextPart.toLowerCase()) && i < originalNameParts.length) {
-                    currentNameParts.push(originalNameParts[i]);
+            let current = [firstName];
+            for (let i = 1; i < parts.length; i++) {
+                current.push(parts[i]);
+                if (PREPOSICOES.includes(parts[i].toLowerCase()) && parts[i+1]) {
+                    current.push(parts[i+1]);
                     i++;
                 }
-
-                const currentSegment = currentNameParts.join(' ');
-                let isUniquePrefix = true;
-
-                for (const otherName of allNames) {
-                    if (otherName.toUpperCase() === name.toUpperCase()) continue;
-                    if (otherName.toUpperCase().startsWith(currentSegment.toUpperCase())) {
-                        isUniquePrefix = false;
+                const segment = current.join(' ');
+                let isUnique = true;
+                for (const other of allNames) {
+                    if (other.toUpperCase() === name.toUpperCase()) continue;
+                    if (other.toUpperCase().startsWith(segment.toUpperCase())) {
+                        isUnique = false;
                         break;
                     }
                 }
-
-                if (isUniquePrefix) return currentSegment;
+                if (isUnique) return segment;
             }
             return name;
         }
 
         function gerar() {
-            const texto = document.getElementById('inputNomes').value;
-            const listaOriginal = texto.split(/[,\n]/).map(n => n.trim()).filter(n => n.length > 0);
+            const raw = document.getElementById('inputNomes').value;
+            const lista = raw.split(/[,\n]/).map(n => n.trim()).filter(n => n.length > 0);
             const tema = document.getElementById('tema').value;
-            const container = document.getElementById('containerCrachas');
+            const box = document.getElementById('containerCrachas');
             
-            container.innerHTML = '';
+            box.innerHTML = '';
 
-            listaOriginal.forEach(nomeCompleto => {
-                const nomeTratado = determineProcessedName(nomeCompleto, listaOriginal);
+            lista.forEach(completo => {
+                const tratado = determineProcessedName(completo, lista);
+                const el = document.createElement('div');
+                el.className = `cracha ${tema}`;
                 
-                const cracha = document.createElement('div');
-                cracha.className = `cracha ${tema}`;
+                const nomeTxt = document.createElement('h1');
+                nomeTxt.className = 'nome';
+                nomeTxt.textContent = tratado.toUpperCase();
                 
-                const h1 = document.createElement('h1');
-                h1.className = 'nome';
-                h1.textContent = nomeTratado.toUpperCase();
-                
-                cracha.appendChild(h1);
-                container.appendChild(cracha);
+                el.appendChild(nomeTxt);
+                box.appendChild(el);
             });
         }
     </script>
