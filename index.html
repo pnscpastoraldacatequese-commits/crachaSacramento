@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crachás Sacramentos - Alta Precisão</title>
+    <title>Crachás Sacramentos - Inteligente</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f4f4f9; margin: 0; display: flex; flex-direction: column; align-items: center; padding: 20px; }
@@ -42,7 +42,7 @@
             <option value="fundo-crisma">Crisma</option>
         </select>
         <label style="margin-top:10px;">2. Lista de Nomes:</label>
-        <textarea id="inputNomes" rows="5" placeholder="Ex: Maria Luiza Silva, Maria Luisa Santos..."></textarea>
+        <textarea id="inputNomes" rows="5" placeholder="Kauany Silva, Kauanny Santos, Maria Luisa..."></textarea>
         <div class="btn-group">
             <button class="btn btn-generate" onclick="gerar()">Gerar Crachás</button>
             <button class="btn btn-print" onclick="window.print()">Imprimir</button>
@@ -54,12 +54,18 @@
     <script>
         const PREPOSICOES = ['de', 'do', 'da', 'dos', 'das'];
 
+        // Função para calcular similaridade (Distância de Levenshtein simplificada)
         function saoSemelhantes(s1, s2) {
-            if (!s1 || !s2) return false;
-            s1 = s1.toUpperCase(); s2 = s2.toUpperCase();
+            s1 = s1.toUpperCase();
+            s2 = s2.toUpperCase();
             if (s1 === s2) return true;
+            
+            // Se a diferença de tamanho for maior que 2 letras, provavelmente não é o mesmo nome
             if (Math.abs(s1.length - s2.length) > 1) return false;
-            let erros = 0, i = 0, j = 0;
+
+            // Checa se um contém o outro ou se diferem por apenas 1 ou 2 caracteres (ex: S vs Z, N vs NN)
+            let erros = 0;
+            let i = 0, j = 0;
             while (i < s1.length && j < s2.length) {
                 if (s1[i] !== s2[j]) {
                     erros++;
@@ -73,58 +79,35 @@
 
         function determineProcessedName(name, allNames) {
             const parts = name.split(' ');
+            const firstName = parts[0];
             
-            // Verifica similaridade nos DOIS primeiros nomes
-            const precisaDiferenciar = allNames.some(outro => {
-                if (outro === name) return false;
-                const outroParts = outro.split(' ');
-                
-                const primSemelhante = saoSemelhantes(parts[0], outroParts[0]);
-                const segSemelhante = (parts[1] && outroParts[1]) ? saoSemelhantes(parts[1], outroParts[1]) : false;
-
-                // Se os dois primeiros são semelhantes ou iguais, precisamos do terceiro
-                return primSemelhante && (parts.length > 1 ? segSemelhante : true);
+            // Busca se existe algum nome na lista cujo primeiro nome seja semelhante ou igual
+            const temSemelhante = allNames.some(outro => {
+                const outroFirstName = outro.split(' ')[0];
+                return outro !== name && saoSemelhantes(firstName, outroFirstName);
             });
 
-            if (!precisaDiferenciar || parts.length === 1) return parts[0];
+            // Se não tem ninguém parecido e não é duplicado, retorna só o primeiro
+            if (!temSemelhante || parts.length === 1) return firstName;
 
-            let current = [parts[0]];
-            let i = 1;
-
-            // Loop para construir o nome até que ele seja único na lista
-            while (i < parts.length) {
+            // Se for semelhante/igual, começa a adicionar partes até ficar único
+            let current = [firstName];
+            for (let i = 1; i < parts.length; i++) {
                 current.push(parts[i]);
-                // Se a parte atual é preposição, pula para o próximo para não terminar em "DE"
                 if (PREPOSICOES.includes(parts[i].toLowerCase()) && parts[i+1]) {
+                    current.push(parts[i+1]);
                     i++;
-                    current.push(parts[i]);
                 }
-                
                 const segment = current.join(' ');
-                
-                // Checa se este segmento já é suficiente para diferenciar de todos os outros
                 let isUnique = true;
                 for (const other of allNames) {
                     if (other.toUpperCase() === name.toUpperCase()) continue;
-                    // Se algum outro nome começa de forma semelhante ao segmento atual, continua adicionando
-                    const otherParts = other.split(' ');
-                    const segmentParts = segment.split(' ');
-                    
-                    let outroComecaIgual = true;
-                    for(let j=0; j < segmentParts.length; j++) {
-                        if (!saoSemelhantes(segmentParts[j], otherParts[j])) {
-                            outroComecaIgual = false;
-                            break;
-                        }
-                    }
-                    if (outroComecaIgual) {
+                    if (other.toUpperCase().startsWith(segment.toUpperCase())) {
                         isUnique = false;
                         break;
                     }
                 }
-
                 if (isUnique) return segment;
-                i++;
             }
             return name;
         }
