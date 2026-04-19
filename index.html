@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Crachás Sacramentos</title>
+    <title>Crachás Sacramentos</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -25,7 +25,7 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            width: 100%;
+            width: 80vw;
             max-width: 600px;
         }
         textarea {
@@ -39,10 +39,10 @@
             width: 100%;
             padding: 10px;
             border-radius: 8px;
-            font-size: 16px;
+            margin-top: 5px;
         }
         .btn {
-            padding: 12px 24px;
+            padding: 10px 20px;
             background-color: #4A90E2;
             color: white;
             border: none;
@@ -50,30 +50,29 @@
             cursor: pointer;
             font-weight: bold;
         }
-        .btn-print { background-color: #27ae60; }
+        .btn-print { background-color: #27ae60; margin-left: 10px; }
 
         .container {
             width: 21cm;
             background-color: white;
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            padding: 1cm 0;
+            justify-content: space-around;
+            align-content: flex-start;
+            padding: 0;
         }
 
-        /* --- Estilo do Crachá --- */
         .cracha {
             width: 9.5cm;
             height: 6.5cm;
             margin: 5px;
-            box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
             background-size: 100% 100%;
             background-repeat: no-repeat;
-            border: 1px solid #eee;
+            box-sizing: border-box;
         }
 
         .nome {
@@ -83,101 +82,109 @@
             text-transform: uppercase;
             text-align: center;
             padding: 0 15px;
-            z-index: 2;
-            /* Sombra leve para garantir leitura se o fundo for poluído */
-            text-shadow: 2px 2px 4px rgba(255,255,255,0.7);
             word-wrap: break-word;
             max-width: 90%;
+            line-height: 1.1;
         }
 
-        /* Classes de Fundo */
         .fundo-crisma { background-image: url('https://raw.githubusercontent.com/pnscpastoraldacatequese-commits/crachaSacramento/main/Crisma.png'); }
         .fundo-eucaristia { background-image: url('https://raw.githubusercontent.com/pnscpastoraldacatequese-commits/crachaSacramento/main/Eucaristia.png'); }
 
         @media print {
             .controls { display: none; }
             body { background: none; padding: 0; }
-            .container { box-shadow: none; padding: 0; }
+            .container { box-shadow: none; width: 21cm; height: 29.7cm; }
             .cracha { 
                 margin: 0; 
-                border: 1px solid #000; /* Linha de corte */
-                page-break-inside: avoid;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                border: 0.1px solid #ddd; /* Guia suave para corte */
+                border-radius: 0;
             }
+            .cracha:nth-child(8n+9) { page-break-before: always; }
         }
     </style>
 </head>
 <body>
 
     <div class="controls">
-        <label>1. Escolha o Sacramento:</label>
+        <label>1. Selecione o Sacramento:</label>
         <select id="tema">
             <option value="fundo-eucaristia">Eucaristia</option>
             <option value="fundo-crisma">Crisma</option>
         </select>
 
-        <label>2. Nomes (separados por vírgula ou linha):</label>
-        <textarea id="nomesIn" rows="5" placeholder="João Silva, Maria Oliveira..."></textarea>
+        <label style="margin-top:10px;">2. Cole a lista de nomes:</label>
+        <textarea id="inputNomes" rows="6" placeholder="Ex: João Silva, João Santos, Maria..."></textarea>
         
-        <div style="display:flex; gap:10px; margin-top:10px;">
+        <div style="margin-top:10px;">
             <button class="btn" onclick="gerar()">Gerar Crachás</button>
             <button class="btn btn-print" onclick="window.print()">Imprimir</button>
         </div>
     </div>
 
-    <div class="container" id="painel"></div>
+    <div class="container" id="containerCrachas"></div>
 
     <script>
         const PREPOSICOES = ['de', 'do', 'da', 'dos', 'das'];
 
-        function processarNomeUnico(nome, todos) {
-            const partes = nome.split(' ');
-            const primeiro = partes[0];
-            const duplicados = todos.filter(n => n.split(' ')[0].toUpperCase() === primeiro.toUpperCase()).length;
+        /** Lógica Original de Unicidade **/
+        function determineProcessedName(name, allNames) {
+            const originalNameParts = name.split(' ');
+            const firstName = originalNameParts[0];
+            const firstNameCount = allNames.filter(n => n.split(' ')[0].toUpperCase() === firstName.toUpperCase()).length;
 
-            if (duplicados === 1 || partes.length === 1) return primeiro;
+            if (firstNameCount === 1 || originalNameParts.length === 1) {
+                return firstName;
+            }
 
-            let atual = [primeiro];
-            for (let i = 1; i < partes.length; i++) {
-                atual.push(partes[i]);
-                if (PREPOSICOES.includes(partes[i].toLowerCase()) && partes[i+1]) {
-                    atual.push(partes[i+1]);
+            let currentNameParts = [firstName];
+            let i = 1;
+
+            while (i < originalNameParts.length) {
+                let nextPart = originalNameParts[i];
+                currentNameParts.push(nextPart);
+                i++;
+
+                if (PREPOSICOES.includes(nextPart.toLowerCase()) && i < originalNameParts.length) {
+                    currentNameParts.push(originalNameParts[i]);
                     i++;
                 }
-                let prefixo = atual.join(' ');
-                let unico = true;
-                for (let outro of todos) {
-                    if (outro.toUpperCase() === nome.toUpperCase()) continue;
-                    if (outro.toUpperCase().startsWith(prefixo.toUpperCase())) {
-                        unico = false;
+
+                const currentSegment = currentNameParts.join(' ');
+                let isUniquePrefix = true;
+
+                for (const otherName of allNames) {
+                    if (otherName.toUpperCase() === name.toUpperCase()) continue;
+                    if (otherName.toUpperCase().startsWith(currentSegment.toUpperCase())) {
+                        isUniquePrefix = false;
                         break;
                     }
                 }
-                if (unico) return prefixo;
+
+                if (isUniquePrefix) return currentSegment;
             }
-            return nome;
+            return name;
         }
 
         function gerar() {
-            const raw = document.getElementById('nomesIn').value;
-            const listaOriginal = raw.split(/[,\n]/).map(n => n.trim()).filter(n => n.length > 0);
+            const texto = document.getElementById('inputNomes').value;
+            const listaOriginal = texto.split(/[,\n]/).map(n => n.trim()).filter(n => n.length > 0);
             const tema = document.getElementById('tema').value;
-            const painel = document.getElementById('painel');
+            const container = document.getElementById('containerCrachas');
             
-            painel.innerHTML = '';
+            container.innerHTML = '';
 
-            listaOriginal.forEach(n => {
-                const nomeCurto = processarNomeUnico(n, listaOriginal);
-                const div = document.createElement('div');
-                div.className = `cracha ${tema}`;
+            listaOriginal.forEach(nomeCompleto => {
+                const nomeTratado = determineProcessedName(nomeCompleto, listaOriginal);
+                
+                const cracha = document.createElement('div');
+                cracha.className = `cracha ${tema}`;
                 
                 const h1 = document.createElement('h1');
                 h1.className = 'nome';
-                h1.textContent = nomeCurto;
+                h1.textContent = nomeTratado.toUpperCase();
                 
-                div.appendChild(h1);
-                painel.appendChild(div);
+                cracha.appendChild(h1);
+                container.appendChild(cracha);
             });
         }
     </script>
